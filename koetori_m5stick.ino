@@ -2208,7 +2208,7 @@ void showSpriteViewer() {
         M5.Display.setTextColor(COLOR_YELLOW, COLOR_BG_PRIMARY);
         M5.Display.print("Bailey");
       } else if (currentSprite == 1) {
-        drawGengar();
+        drawGengar(4, 35);
         // Label
         M5.Display.setTextSize(1);
         M5.Display.setCursor(5, 5);
