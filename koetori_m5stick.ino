@@ -14,6 +14,7 @@
 #include <esp_log.h>
 #include "secrets.h"  // WiFi credentials, API keys, etc. (not committed to git)
 #include "config.h"   // Configuration constants
+#include "types.h"    // Type definitions
 
 bool isRecording = false;
 bool hasRecording = false;  // Track if we have audio to send or cancel
@@ -33,19 +34,6 @@ String lastApiResponse = "";  // Store last API response for parsing
 // Forward declarations
 bool uploadRecording(const char* filename = "/rec.wav");
 void connectWiFiByIndex(int networkIndex, bool silent = false);
-
-// Struct to hold API response data
-struct UploadResponse {
-  bool success;
-  String category;
-  float confidence;
-  int processingTimeMs;
-  float durationSeconds;
-  int fileSizeKb;
-  int tokensUsed;
-  int tokensRemaining;
-  int quotaPercent;
-};
 
 // Text Sizing Utilities
 // Calculate text width for given text and size
