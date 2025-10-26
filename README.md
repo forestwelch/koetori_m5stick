@@ -28,6 +28,7 @@ Voice recording firmware for the M5StickC PLUS2 that records audio, uploads it t
 ### Arduino IDE Setup
 
 1. **Install ESP32 Board Support:**
+
    - Open Arduino IDE → Preferences
    - Add to "Additional Board Manager URLs":
      ```
@@ -37,6 +38,7 @@ Voice recording firmware for the M5StickC PLUS2 that records audio, uploads it t
    - Search for "M5Stack" and install "M5Stack by M5Stack official"
 
 2. **Install M5StickCPlus2 Library:**
+
    - Go to Sketch → Include Library → Manage Libraries
    - Search for "M5StickCPlus2" and install
 
@@ -113,6 +115,7 @@ arduino-cli upload -p /dev/cu.usbserial-* --fqbn m5stack:esp32:m5stack_stickc_pl
 ### Menu System
 
 **Press B on ready screen** to open menu:
+
 - **Send Queue** - Upload queued recordings
 - **WiFi** - Connect to WiFi networks
 - **Long Mode** - Toggle recording duration
@@ -121,6 +124,7 @@ arduino-cli upload -p /dev/cu.usbserial-* --fqbn m5stack:esp32:m5stack_stickc_pl
 ### Debug Menu
 
 **Press C (Power button)** to access debug tools:
+
 - **Text Test** - Test text sizing (check serial output)
 - **LED Test** - Test the RGB LED (toggle on/off)
 - **Sprites** - View all sprites (Bailey, Gengar)
@@ -239,9 +243,11 @@ POST https://www.koetori.com/api/transcribe/device
 ```
 
 **Headers:**
+
 - `x-api-key: YOUR_API_KEY`
 
 **Form Data:**
+
 - `audio`: WAV file
 - `device_id`: Device identifier
 - `username`: Username
@@ -250,9 +256,10 @@ POST https://www.koetori.com/api/transcribe/device
 
 ## Contributing
 
-This is a companion project to [Koetori](https://github.com/yourusername/koetori). 
+This is a companion project to [Koetori](https://github.com/yourusername/koetori).
 
 For firmware improvements:
+
 1. Fork the repository
 2. Create a feature branch
 3. Test on actual hardware
@@ -270,6 +277,7 @@ MIT License - see LICENSE file for details
 ## Support
 
 For issues related to:
+
 - **Firmware bugs** - Open an issue in this repository
 - **API issues** - Check the main Koetori repository
 - **Hardware issues** - Consult M5Stack documentation
@@ -277,4 +285,5 @@ For issues related to:
 ---
 
 **Made with ❤️ for Koetori**
+
 
