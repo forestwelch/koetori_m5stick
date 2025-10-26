@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gengar → M5Stack Converter</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        h1 { color: #a855f7; text-align: center; }
+        .container { background: #2a2a2a; padding: 30px; border-radius: 10px; }
+        input[type="file"] { margin: 20px 0; }
+        input[type="number"] { 
+            width: 80px; 
+            padding: 8px; 
+            font-size: 16px;
+            background: #3a3a3a;
+            border: 1px solid #555;
+            color: #fff;
+            border-radius: 5px;
+        }
+        button {
+            background: #a855f7;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-weight: 600;
+        }
+        button:hover { background: #9333ea; }
+        #output {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre;
+            overflow-x: auto;
+            max-height: 500px;
+            overflow-y: auto;
+            margin-top: 20px;
+            border: 1px solid #444;
+        }
+        .preview { 
+            margin: 20px 0;
+            text-align: center;
+        }
+        canvas {
+            border: 2px solid #555;
+            background: #000;
+            image-rendering: pixelated;
+        }
+        .size-inputs { margin: 20px 0; }
+        .size-inputs label { margin-right: 10px; }
+        .status { 
+            padding: 10px; 
+            margin: 10px 0; 
+            border-radius: 5px;
+            text-align: center;
+            font-weight: 600;
+        }
+        .success { background: #10b981; }
+        .error { background: #ef4444; }
+    </style>
+</head>
+<body>
+    <h1>👻 Gengar → M5Stack RGB565 Converter</h1>
+    
+    <div class="container">
+        <input type="file" id="imageInput" accept="image/*">
+        
+        <div class="size-inputs">
+            <label>Width: <input type="number" id="width" value="48"></label>
+            <label>Height: <input type="number" id="height" value="48"></label>
+        </div>
+        
+        <button onclick="convertImage()">🔄 Convert to RGB565</button>
+        <button onclick="copyCode()" id="copyBtn" style="display:none;">📋 Copy Code</button>
+        
+        <div id="status"></div>
+        
+        <div class="preview">
+            <canvas id="preview"></canvas>
+        </div>
+        
+        <div id="output"></div>
+    </div>
+
+    <script>
+        let convertedCode = '';
+
+        function rgb888ToRgb565(r, g, b) {
+            const r5 = (r >> 3) & 0x1F;
+            const g6 = (g >> 2) & 0x3F;
+            const b5 = (b >> 3) & 0x1F;
+            return (r5 << 11) | (g6 << 5) | b5;
+        }
+
+        function convertImage() {
+            const fileInput = document.getElementById('imageInput');
+            const width = parseInt(document.getElementById('width').value);
+            const height = parseInt(document.getElementById('height').value);
+            
+            if (!fileInput.files || !fileInput.files[0]) {
+                showStatus('Please select an image!', 'error');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    // Create canvas for processing
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Draw and resize image
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Get pixel data
+                    const imageData = ctx.getImageData(0, 0, width, height);
+                    const pixels = imageData.data;
+                    
+                    // Generate code
+                    let output = [];
+                    output.push(`// Gengar sprite: ${width}x${height} pixels`);
+                    output.push(`const uint16_t gengar_sprite[${height}][${width}] = {`);
+                    
+                    for (let y = 0; y < height; y++) {
+                        let row = '  {';
+                        for (let x = 0; x < width; x++) {
+                            const idx = (y * width + x) * 4;
+                            const r = pixels[idx];
+                            const g = pixels[idx + 1];
+                            const b = pixels[idx + 2];
+                            const a = pixels[idx + 3];
+                            
+                            // Handle transparency
+                            const rgb565 = (a < 128) ? 0x0000 : rgb888ToRgb565(r, g, b);
+                            
+                            row += `0x${rgb565.toString(16).padStart(4, '0').toUpperCase()}`;
+                            if (x < width - 1) row += ', ';
+                        }
+                        row += '}';
+                        if (y < height - 1) row += ',';
+                        output.push(row);
+                    }
+                    
+                    output.push('};');
+                    output.push('');
+                    output.push('// Usage:');
+                    output.push('void drawGengar(int startX, int startY) {');
+                    output.push(`  for (int y = 0; y < ${height}; y++) {`);
+                    output.push(`    for (int x = 0; x < ${width}; x++) {`);
+                    output.push('      uint16_t color = gengar_sprite[y][x];');
+                    output.push('      if (color != 0x0000) {  // Skip transparent');
+                    output.push('        M5.Display.drawPixel(startX + x, startY + y, color);');
+                    output.push('      }');
+                    output.push('    }');
+                    output.push('  }');
+                    output.push('}');
+                    
+                    convertedCode = output.join('\n');
+                    document.getElementById('output').textContent = convertedCode;
+                    
+                    // Show preview (scaled up)
+                    const previewCanvas = document.getElementById('preview');
+                    const scale = 4;
+                    previewCanvas.width = width * scale;
+                    previewCanvas.height = height * scale;
+                    const previewCtx = previewCanvas.getContext('2d');
+                    previewCtx.imageSmoothingEnabled = false;
+                    previewCtx.drawImage(canvas, 0, 0, width * scale, height * scale);
+                    
+                    document.getElementById('copyBtn').style.display = 'inline-block';
+                    showStatus(`✅ Converted! ${width}x${height} = ${width * height * 2} bytes`, 'success');
+                };
+                img.src = e.target.result;
+            };
+
+            reader.readAsDataURL(file);
+        }
+
+        function copyCode() {
+            navigator.clipboard.writeText(convertedCode).then(() => {
+                showStatus('📋 Copied to clipboard!', 'success');
+            });
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + type;
+        }
+    </script>
+</body>
+</html>
