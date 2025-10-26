@@ -15,7 +15,9 @@
 #include "secrets.h"  // WiFi credentials, API keys, etc. (not committed to git)
 #include "config.h"   // Configuration constants
 #include "types.h"    // Type definitions
+#include "globals.h"  // Global variable declarations
 
+// Global variable definitions
 bool isRecording = false;
 bool hasRecording = false;  // Track if we have audio to send or cancel
 bool screenIsOff = false;     // Track if screen is actually off
