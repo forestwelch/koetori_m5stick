@@ -1198,6 +1198,4 @@ UploadResponse parseUploadResponse(const String& response) {
   return result;
 }
 
-// Bailey sprite: 135x240 pixels (full screen) - for boot screen
-
 
