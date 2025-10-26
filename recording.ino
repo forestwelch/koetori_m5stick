@@ -354,10 +354,14 @@ void saveAndUpload() {
       
       int y = 80;
       
-      // Category (if available)
+      // Category with confidence (if available)
       if (apiResp.category.length() > 0) {
         M5.Display.setCursor(10, y);
-        M5.Display.printf("Type: %s", apiResp.category.c_str());
+        if (apiResp.confidence > 0) {
+          M5.Display.printf("%s (%.0f%%)", apiResp.category.c_str(), apiResp.confidence * 100);
+        } else {
+          M5.Display.printf("Type: %s", apiResp.category.c_str());
+        }
         y += 12;
       }
       
@@ -390,14 +394,17 @@ void saveAndUpload() {
         y += 12;
       }
       
-      // Quota remaining (if available)
-      if (apiResp.tokensRemaining > 0 || apiResp.quotaPercent > 0) {
+      // LLM Quota (most important since it's limited)
+      if (apiResp.quotaPercent > 0) {
         M5.Display.setCursor(10, y);
-        if (apiResp.tokensRemaining > 0) {
-          M5.Display.printf("Quota: %d left", apiResp.tokensRemaining);
-        } else if (apiResp.quotaPercent > 0) {
-          M5.Display.printf("Quota: %d%% used", apiResp.quotaPercent);
+        // Color code based on usage
+        if (apiResp.quotaPercent >= 90) {
+          M5.Display.setTextColor(COLOR_RED);
+        } else if (apiResp.quotaPercent >= 70) {
+          M5.Display.setTextColor(COLOR_YELLOW);
         }
+        M5.Display.printf("LLM: %d%% used", apiResp.quotaPercent);
+        M5.Display.setTextColor(COLOR_WHITE);  // Reset
         y += 12;
       }
       
@@ -840,28 +847,33 @@ UploadResponse parseUploadResponse(const String& response) {
     result.tokensUsed = tokStr.toInt();
   }
   
-  // Extract quota.remaining (if present)
-  int remIdx = json.indexOf("\"remaining\":");
-  if (remIdx < 0) remIdx = json.indexOf("\"remaining\": ");
-  if (remIdx >= 0) {
-    int numStart = json.indexOf(":", remIdx) + 1;
-    int numEnd = json.indexOf(",", numStart);
-    if (numEnd < 0) numEnd = json.indexOf("}", numStart);
-    String remStr = json.substring(numStart, numEnd);
-    remStr.trim();
-    result.tokensRemaining = remStr.toInt();
-  }
-  
-  // Extract quota.percent_used (if present)
-  int pctIdx = json.indexOf("\"percent_used\":");
-  if (pctIdx < 0) pctIdx = json.indexOf("\"percent_used\": ");
-  if (pctIdx >= 0) {
-    int numStart = json.indexOf(":", pctIdx) + 1;
-    int numEnd = json.indexOf(",", numStart);
-    if (numEnd < 0) numEnd = json.indexOf("}", numStart);
-    String pctStr = json.substring(numStart, numEnd);
-    pctStr.trim();
-    result.quotaPercent = pctStr.toInt();
+  // Extract quota.llm.remaining (if present) - look for "llm" section first
+  int llmIdx = json.indexOf("\"llm\":");
+  if (llmIdx < 0) llmIdx = json.indexOf("\"llm\": ");
+  if (llmIdx >= 0) {
+    // Find "remaining" after the "llm" key
+    int remIdx = json.indexOf("\"remaining\":", llmIdx);
+    if (remIdx < 0) remIdx = json.indexOf("\"remaining\": ", llmIdx);
+    if (remIdx >= 0 && remIdx < llmIdx + 300) { // Within ~300 chars of "llm"
+      int numStart = json.indexOf(":", remIdx) + 1;
+      int numEnd = json.indexOf(",", numStart);
+      if (numEnd < 0) numEnd = json.indexOf("}", numStart);
+      String remStr = json.substring(numStart, numEnd);
+      remStr.trim();
+      result.tokensRemaining = remStr.toInt();
+    }
+    
+    // Find "percent_used" after the "llm" key
+    int pctIdx = json.indexOf("\"percent_used\":", llmIdx);
+    if (pctIdx < 0) pctIdx = json.indexOf("\"percent_used\": ", llmIdx);
+    if (pctIdx >= 0 && pctIdx < llmIdx + 300) { // Within ~300 chars of "llm"
+      int numStart = json.indexOf(":", pctIdx) + 1;
+      int numEnd = json.indexOf(",", numStart);
+      if (numEnd < 0) numEnd = json.indexOf("}", numStart);
+      String pctStr = json.substring(numStart, numEnd);
+      pctStr.trim();
+      result.quotaPercent = pctStr.toInt();
+    }
   }
   
   return result;
