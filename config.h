@@ -5,6 +5,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+// API configuration
+#define API_URL "https://www.koetori.com/api/transcribe/device"
+
 // Audio configuration
 #define SAMPLE_RATE 16000
 #define RECORDING_TIME_NORMAL 30  // 30 seconds (uses RAM buffer)

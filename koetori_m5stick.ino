@@ -15,9 +15,6 @@
 #include "secrets.h"  // WiFi credentials, API keys, etc. (not committed to git)
 #include "config.h"   // Configuration constants
 
-// API configuration
-const char* API_URL = "https://www.koetori.com/api/transcribe/device";
-
 bool isRecording = false;
 bool hasRecording = false;  // Track if we have audio to send or cancel
 bool screenIsOff = false;     // Track if screen is actually off
