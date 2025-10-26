@@ -410,7 +410,36 @@ void saveAndUpload() {
       lastInteractionTime = millis();
       displayReady();
     } else {
-      // Failed - add to queue
+      // Failed - check if it's a rate limit
+      bool isRateLimit = (lastApiResponse.indexOf("rate_limit") >= 0 || 
+                          lastApiResponse.indexOf("Rate limit") >= 0 ||
+                          lastApiResponse.indexOf("429") >= 0);
+      
+      M5.Display.fillScreen(COLOR_BG_PRIMARY);
+      
+      if (isRateLimit) {
+        // Show clear rate limit message
+        drawTextSafe("RATE", 10, 30, 4, COLOR_YELLOW);
+        drawTextSafe("LIMIT", 10, 70, 4, COLOR_YELLOW);
+        
+        // Extract wait time if available
+        int waitIdx = lastApiResponse.indexOf("try again in ");
+        if (waitIdx >= 0) {
+          int timeStart = waitIdx + 13;
+          int timeEnd = lastApiResponse.indexOf(".", timeStart);
+          if (timeEnd > timeStart && (timeEnd - timeStart) < 20) {
+            String waitTime = lastApiResponse.substring(timeStart, timeEnd);
+            M5.Display.setTextSize(1);
+            M5.Display.setCursor(10, 120);
+            M5.Display.setTextColor(COLOR_WHITE);
+            M5.Display.printf("Wait: %s", waitTime.c_str());
+          }
+        }
+        
+        delay(3000);  // Show longer for rate limits
+      }
+      
+      // Add to queue
       if (addToQueue()) {
       M5.Display.fillScreen(COLOR_BG_PRIMARY);
       drawTextSafe("SAVED", 10, 40, 4, COLOR_WHITE);
