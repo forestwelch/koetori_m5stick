@@ -215,6 +215,10 @@ void stopRecording() {
   Serial.println("\n=== STOPPING ===");
   isRecording = false;
   
+  // Show "PROCESSING..." feedback
+  M5.Display.fillScreen(COLOR_BG_PRIMARY);
+  drawTextSafe("PROCESSING", 10, 60, 2, COLOR_WHITE);
+  
   delay(100);
   
   Serial.printf("Recorded %d samples (%d bytes)\n", samplesRecorded, samplesRecorded * 2);
@@ -330,6 +334,11 @@ void saveAndUpload() {
   }
   
   if (WiFi.status() == WL_CONNECTED) {
+    // Show "UPLOADING..." before starting
+    M5.Display.fillScreen(COLOR_BG_PRIMARY);
+    drawTextSafe("UPLOADING", 10, 60, 2, COLOR_WHITE);
+    delay(300);
+    
     bool success = uploadRecording();
     
     if (success) {
@@ -412,8 +421,7 @@ void saveAndUpload() {
     } else {
       // Failed - check if it's a rate limit
       bool isRateLimit = (lastApiResponse.indexOf("rate_limit") >= 0 || 
-                          lastApiResponse.indexOf("Rate limit") >= 0 ||
-                          lastApiResponse.indexOf("429") >= 0);
+                          lastApiResponse.indexOf("Rate limit") >= 0);
       
       M5.Display.fillScreen(COLOR_BG_PRIMARY);
       
@@ -437,6 +445,14 @@ void saveAndUpload() {
         }
         
         delay(3000);  // Show longer for rate limits
+      } else {
+        // Generic failure (not rate limit)
+        drawTextSafe("FAILED", 10, 50, 3, COLOR_RED);
+        M5.Display.setTextSize(1);
+        M5.Display.setCursor(10, 90);
+        M5.Display.setTextColor(COLOR_GRAY);
+        M5.Display.print("Will retry later");
+        delay(2000);
       }
       
       // Add to queue
@@ -690,6 +706,14 @@ bool uploadRecording(const char* filename) {
     file.close();
   client.print(footer);
   client.flush();
+  
+  // Show "WAITING..." while server processes (API retry happens here)
+  M5.Display.fillScreen(COLOR_BG_PRIMARY);
+  drawTextSafe("WAITING", 10, 50, 2, COLOR_WHITE);
+  M5.Display.setTextSize(1);
+  M5.Display.setCursor(10, 80);
+  M5.Display.setTextColor(COLOR_GRAY);
+  M5.Display.print("Server processing...");
   
   unsigned long timeout = millis();
   while (!client.available() && millis() - timeout < 30000) {
