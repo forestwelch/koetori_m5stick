@@ -53,8 +53,7 @@ void setup() {
   M5.Display.setRotation(0);
   M5.Display.setBrightness(SCREEN_BRIGHTNESS);
   M5.Display.fillScreen(COLOR_BG_PRIMARY);
-
-  drawBailey();
+  // No startup sprite (saves battery; displayReady() draws minimal idle UI)
 
   Serial.println("M5 initialized");
 

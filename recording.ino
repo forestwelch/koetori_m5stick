@@ -298,7 +298,11 @@ static bool writeRecordingToFile() {
 }
 
 void saveAndUpload() {
-  const bool streamFromRam = isBLEConnected() && !isLongRecordingMode;
+  const bool bleConnected = isBLEConnected();
+  const bool streamFromRam = bleConnected && !isLongRecordingMode;
+  
+  Serial.printf("saveAndUpload: BLE=%d, longMode=%d, streamFromRam=%d\n", 
+                bleConnected ? 1 : 0, isLongRecordingMode ? 1 : 0, streamFromRam ? 1 : 0);
 
   // Only write to SPIFFS when we're not using the RAM-stream fast path.
   if (!streamFromRam) {
@@ -516,68 +520,59 @@ void sendQueue() {
 
 void loop() {
   M5.update();
-  
-  // Manage screen power on ready screen (dim after 2s, off after 10s)
+
+  // Auto-send queue when BLE connects and we have queued files (no menu needed)
+  if (isBLEConnected() && queueCount > 0 && !isRecording && !hasRecording) {
+    sendQueue();
+    lastInteractionTime = millis();
+    // sendQueue() blocks and returns when done; loop continues
+  }
+
+  // Manage screen power (dim quickly, then off)
   if (!isRecording && !hasRecording && !screenIsOff) {
     uint32_t idleTime = millis() - lastInteractionTime;
-    
-    // Dim after 2 seconds
     if (idleTime >= SCREEN_DIM_DELAY && !screenIsDimmed) {
       M5.Display.setBrightness(SCREEN_BRIGHTNESS_DIMMED);
       screenIsDimmed = true;
       Serial.println("Ready screen: DIMMED");
     }
-    
-    // Turn off after 10 seconds
     if (idleTime >= IDLE_SCREEN_OFF_DELAY) {
       screenOff();
     }
   }
-  
-  // Button A: Record/Stop (also wakes screen if off)
+
+  // Button A: Record / Stop. One press = wake (if off) and/or start recording; no "load" tap.
   static unsigned long lastPressA = 0;
   if (M5.BtnA.wasPressed() && (millis() - lastPressA > 500)) {
     lastPressA = millis();
     lastInteractionTime = millis();
-    
     if (screenIsOff) {
-      screenOn();  // Just wake up, don't record yet
+      screenOn();
+      // Same press starts recording so user doesn't have to tap twice
+      resetScreenPower();
+      startRecording();
     } else if (!isRecording) {
-      resetScreenPower();  // Reset brightness cycle
-      startRecording();  // This now blocks until recording is done
+      resetScreenPower();
+      startRecording();
     }
   }
-  
-  // Button B: Menu/Cancel (or wake screen)
+
+  // B: wake screen; cancel recording if one is pending. No menu.
   static unsigned long lastPressB = 0;
   if (M5.BtnB.wasPressed() && (millis() - lastPressB > 500)) {
     lastPressB = millis();
     lastInteractionTime = millis();
-    
-    if (screenIsOff) {
-      screenOn();  // Just wake up
-    } else if (hasRecording) {
-      cancelRecording();  // Cancel current recording review
-    } else {
-      showMenu();  // Always show menu
-      displayReady();  // Return to ready screen after menu
-    }
+    if (screenIsOff) screenOn();
+    else if (hasRecording) cancelRecording();
   }
-  
-  // Power Button (C): Debug menu
-  static unsigned long lastPressPWR = 0;
-  if (M5.BtnPWR.wasPressed() && (millis() - lastPressPWR > 500)) {
-    lastPressPWR = millis();
+  // PWR: wake screen only
+  if (M5.BtnPWR.wasPressed()) {
     lastInteractionTime = millis();
-    
-    if (screenIsOff) {
-      screenOn();  // Wake up
-    } else if (!isRecording && !hasRecording) {
-      showDebugMenu();  // Show debug menu
-      displayReady();  // Return to ready screen
-    }
+    if (screenIsOff) screenOn();
   }
-  
-  delay(100);
+
+  // Longer delay when idle = fewer CPU wakeups, better battery
+  uint32_t idle = (!isRecording && !hasRecording) ? 250 : 100;
+  delay(idle);
 }
 

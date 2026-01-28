@@ -31,8 +31,8 @@
 // Screen settings
 #define SCREEN_BRIGHTNESS 50        // Normal brightness (0-255)
 #define SCREEN_BRIGHTNESS_DIMMED 1  // Dimmed to save power (0-255)
-#define SCREEN_DIM_DELAY 2000       // Dim after 2 seconds
-#define IDLE_SCREEN_OFF_DELAY 10000 // Turn off after 10 seconds on ready screen (idle only)
+#define SCREEN_DIM_DELAY 1000       // Dim after 1 second (battery: less time at full brightness)
+#define IDLE_SCREEN_OFF_DELAY 3000  // Turn off after 3 seconds on ready (battery: was 10s)
 
 #endif // CONFIG_H
 

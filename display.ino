@@ -109,26 +109,22 @@ void drawProgress(int percent) {
   M5.Display.printf("%d%%", percent);
 }
 
+// Minimal idle screen for battery: BLE + battery + one hint. No sprite, no menu hints.
 void displayReady() {
-  // Reset screen power and interaction time
   resetScreenPower();
   lastInteractionTime = millis();
-  
+
   M5.Display.fillScreen(COLOR_BG_PRIMARY);
-  
-  // BLE status at top left
+
   if (isBLEConnected()) {
     drawTextSafe("BLE ON", 2, 5, 1, COLOR_GREEN, 90);
   } else {
     drawTextSafe("SEARCH", 2, 5, 1, COLOR_YELLOW, 90);
   }
-  
-  // Battery indicator at top right
+
   int batteryLevel = M5.Power.getBatteryLevel();
   M5.Display.setTextSize(1);
   M5.Display.setCursor(95, 5);
-  
-  // Color based on battery level
   if (batteryLevel > 50) {
     M5.Display.setTextColor(COLOR_GREEN);
   } else if (batteryLevel > 20) {
@@ -136,23 +132,11 @@ void displayReady() {
   } else {
     M5.Display.setTextColor(COLOR_RED);
   }
-  
   M5.Display.printf("%d%%", batteryLevel);
-  
-  // Recording mode indicator (top center, below battery/wifi)
-  M5.Display.setTextSize(1);
-  M5.Display.setCursor(35, 21);
-  M5.Display.setTextColor(isLongRecordingMode ? COLOR_YELLOW : COLOR_GRAY);
-  M5.Display.printf("%ds", isLongRecordingMode ? RECORDING_TIME_LONG : RECORDING_TIME_NORMAL);
-  
-  // Draw Gengar centered (128x128 sprite on 135x240 portrait screen)
-  drawGengar(4, 35);  // Move down a bit to make room for mode indicator
-  
-  // Button hints stacked at bottom
-  drawButtonHint("RECORD", COLOR_GREEN, 200, "A");
-  drawButtonHint("MENU", COLOR_RED, 215, "B");
-  drawButtonHint("DEBUG", COLOR_YELLOW, 230, "C");
-  
+
+  // Single purpose: A = record/stop. One hint only.
+  drawButtonHint("A = REC", COLOR_GREEN, 220, "A");
+
   Serial.println("Ready");
 }
 
