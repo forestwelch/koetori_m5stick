@@ -16,10 +16,8 @@ void cancelRecording();
 void displayReview();
 void saveAndUpload();
 
-// Queue and network upload
+// Queue and BLE send
 void sendQueue();
-bool uploadRecording(const char* filename = "/rec.wav");
-UploadResponse parseUploadResponse(const String& response);
 
 #endif // RECORDING_H
 

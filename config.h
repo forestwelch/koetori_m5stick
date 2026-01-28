@@ -5,8 +5,14 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-// API configuration
-#define API_URL "https://www.koetori.com/api/transcribe/device"
+// BLE configuration (stream to iOS app; iPhone handles API upload)
+#define BLE_DEVICE_NAME_PREFIX "Koetori-M5"
+#define BLE_SERVICE_UUID         "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define BLE_CHAR_AUDIO_UUID      "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#define BLE_CHAR_CONTROL_UUID    "beb5483e-36e1-4688-b7f5-ea07361b26a9"
+#define BLE_CHAR_STATUS_UUID     "beb5483e-36e1-4688-b7f5-ea07361b26aa"
+#define BLE_AUDIO_CHUNK_SIZE     512   // MTU-safe; 2 bytes index + 510 bytes audio
+#define BLE_AUDIO_PAYLOAD_SIZE   510   // per chunk
 
 // Audio configuration
 #define SAMPLE_RATE 16000

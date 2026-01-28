@@ -1,3 +1,5 @@
+#include "ble_handler.h"
+
 int getTextWidth(const char* text, int textSize) {
   M5.Display.setTextSize(textSize);
   return M5.Display.textWidth(text);
@@ -114,29 +116,11 @@ void displayReady() {
   
   M5.Display.fillScreen(COLOR_BG_PRIMARY);
   
-  // Network status at top left (more space - narrower margins)
-  if (WiFi.status() == WL_CONNECTED) {
-    // SSID on first line (truncate if needed)
-    drawTextSafe(WiFi.SSID().c_str(), 2, 5, 1, COLOR_GREEN, 90);  // Leave space for battery
-    
-    // WiFi signal strength on second line
-    int32_t rssi = WiFi.RSSI();
-    
-    // Color based on signal strength
-    uint16_t signalColor;
-    if (rssi > -60) {
-      signalColor = COLOR_GREEN;
-    } else if (rssi > -70) {
-      signalColor = COLOR_YELLOW;
-    } else {
-      signalColor = COLOR_RED;
-    }
-    
-    char rssiText[16];
-    sprintf(rssiText, "%ddBm", rssi);
-    drawTextSafe(rssiText, 2, 13, 1, signalColor, 90);
+  // BLE status at top left
+  if (isBLEConnected()) {
+    drawTextSafe("BLE ON", 2, 5, 1, COLOR_GREEN, 90);
   } else {
-    drawTextSafe("NO WIFI", 2, 5, 1, COLOR_RED, 90);  // Abbreviated from "DISCONNECTED"
+    drawTextSafe("SEARCH", 2, 5, 1, COLOR_YELLOW, 90);
   }
   
   // Battery indicator at top right

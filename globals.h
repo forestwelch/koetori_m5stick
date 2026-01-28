@@ -20,10 +20,10 @@ extern uint32_t screenStateStartTime;
 extern int16_t* recordingBuffer;
 extern uint32_t samplesRecorded;
 
-// Network and queue
+// Queue
 extern int queueCount;
-extern int lastSuccessfulNetwork;
-extern uint32_t lastWiFiCheck;
+
+// BLE: connection handled in ble_handler; lastApiResponse set when iPhone sends SUCCESS
 
 // Recording mode
 extern bool isLongRecordingMode;

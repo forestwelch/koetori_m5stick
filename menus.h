@@ -8,7 +8,6 @@
 // Main menus
 void showMenu();
 void showDebugMenu();
-void showWiFiMenu();
 
 // Debug menu options
 void showTextTest();
