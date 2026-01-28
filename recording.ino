@@ -279,69 +279,74 @@ void displayReview() {
   saveAndUpload();
 }
 
-void saveAndUpload() {
-  // For long mode, file is already written to SPIFFS; skip to upload
-  if (isLongRecordingMode) {
-    Serial.println("Long mode: File already saved to SPIFFS");
-  } else {
-    // NORMAL MODE: Write from RAM buffer to file
-    Serial.println("Writing to file...");
-    
-    // Now write to file
-    if (SPIFFS.exists("/rec.wav")) {
-      SPIFFS.remove("/rec.wav");
-    }
-    
-    File audioFile = SPIFFS.open("/rec.wav", FILE_WRITE);
-    if (!audioFile) {
-      displayError("File Error");
-      delay(2000);
-      displayReady();
-      return;
-    }
-    
-    // Write WAV header
-    uint32_t dataSize = samplesRecorded * 2;
-    writeWAVHeader(audioFile, dataSize);
-    
-    // Apply gain and write audio data in chunks WITH PROGRESS
-    Serial.printf("Writing %d samples...\n", samplesRecorded);
-    resetScreenPower();  // Start brightness cycle
-    for (uint32_t i = 0; i < samplesRecorded; i++) {
-      // Update progress every 5000 samples
-      if (i % 5000 == 0) {
-        int percent = (i * 100) / samplesRecorded;
-        manageScreenPower();  // Handle dimming/off
-        
-        M5.Display.fillScreen(COLOR_BG_PRIMARY);
-        
-        // "SAVING" - smaller text, left margin
-        drawTextSafe("SAVING", 5, 30, 3, COLOR_WHITE);
-        
-        // Progress bar at bottom
-        drawProgress(percent);
-        
-        Serial.printf("Save progress: %d%%\n", percent);
-      }
-      
-      int32_t sample = recordingBuffer[i] * 10;  // 10x gain
-      if (sample > 32767) sample = 32767;
-      if (sample < -32768) sample = -32768;
-      int16_t amplified = (int16_t)sample;
-      audioFile.write((uint8_t*)&amplified, 2);
-    }
-    
-    audioFile.close();
-    Serial.println("File saved");
+// Write current RAM buffer to /rec.wav (used when queueing or when BLE stream failed).
+static bool writeRecordingToFile() {
+  if (SPIFFS.exists("/rec.wav")) SPIFFS.remove("/rec.wav");
+  File audioFile = SPIFFS.open("/rec.wav", FILE_WRITE);
+  if (!audioFile) return false;
+  uint32_t dataSize = samplesRecorded * 2;
+  writeWAVHeader(audioFile, dataSize);
+  for (uint32_t i = 0; i < samplesRecorded; i++) {
+    int32_t sample = recordingBuffer[i] * 10;
+    if (sample > 32767) sample = 32767;
+    if (sample < -32768) sample = -32768;
+    int16_t amplified = (int16_t)sample;
+    audioFile.write((uint8_t*)&amplified, 2);
   }
-  
+  audioFile.close();
+  return true;
+}
+
+void saveAndUpload() {
+  const bool streamFromRam = isBLEConnected() && !isLongRecordingMode;
+
+  // Only write to SPIFFS when we're not using the RAM-stream fast path.
+  if (!streamFromRam) {
+    if (isLongRecordingMode) {
+      Serial.println("Long mode: File already saved to SPIFFS");
+    } else {
+      Serial.println("Writing to file...");
+      if (SPIFFS.exists("/rec.wav")) SPIFFS.remove("/rec.wav");
+      File audioFile = SPIFFS.open("/rec.wav", FILE_WRITE);
+      if (!audioFile) {
+        displayError("File Error");
+        delay(2000);
+        displayReady();
+        return;
+      }
+      uint32_t dataSize = samplesRecorded * 2;
+      writeWAVHeader(audioFile, dataSize);
+      Serial.printf("Writing %d samples...\n", samplesRecorded);
+      resetScreenPower();
+      for (uint32_t i = 0; i < samplesRecorded; i++) {
+        if (i % 5000 == 0) {
+          int percent = (i * 100) / samplesRecorded;
+          manageScreenPower();
+          M5.Display.fillScreen(COLOR_BG_PRIMARY);
+          drawTextSafe("SAVING", 5, 30, 3, COLOR_WHITE);
+          drawProgress(percent);
+          Serial.printf("Save progress: %d%%\n", percent);
+        }
+        int32_t sample = recordingBuffer[i] * 10;
+        if (sample > 32767) sample = 32767;
+        if (sample < -32768) sample = -32768;
+        int16_t amplified = (int16_t)sample;
+        audioFile.write((uint8_t*)&amplified, 2);
+      }
+      audioFile.close();
+      Serial.println("File saved");
+    }
+  }
+
   if (isBLEConnected()) {
     M5.Display.fillScreen(COLOR_BG_PRIMARY);
     drawTextSafe("SENDING", 10, 60, 2, COLOR_WHITE);
     delay(300);
 
     lastApiResponse = "";
-    bool success = streamViaBLE("/rec.wav");
+    bool success = streamFromRam
+      ? streamViaBLEFromSamples(recordingBuffer, samplesRecorded)
+      : streamViaBLE("/rec.wav");
 
     if (success) {
       UploadResponse apiResp;
@@ -372,21 +377,37 @@ void saveAndUpload() {
         }
         y += 12;
       }
-      File f = SPIFFS.open("/rec.wav");
-      if (f) {
-        size_t fileSize = f.size();
-        f.close();
-        float durationSec = (fileSize - 44) / 32000.0;
+      if (streamFromRam) {
+        float durationSec = (float)samplesRecorded / (float)SAMPLE_RATE;
+        uint32_t sizeBytes = samplesRecorded * 2 + 44;
         M5.Display.setCursor(10, y);
-        M5.Display.printf("%.1fs / %dKB", durationSec, (int)(fileSize / 1024));
+        M5.Display.printf("%.1fs / %dKB", durationSec, (int)(sizeBytes / 1024));
+      } else {
+        File f = SPIFFS.open("/rec.wav");
+        if (f) {
+          size_t fileSize = f.size();
+          f.close();
+          float durationSec = (fileSize - 44) / 32000.0;
+          M5.Display.setCursor(10, y);
+          M5.Display.printf("%.1fs / %dKB", durationSec, (int)(fileSize / 1024));
+        }
       }
 
       delay(2500);
-      SPIFFS.remove("/rec.wav");
+      if (!streamFromRam) SPIFFS.remove("/rec.wav");
       hasRecording = false;
       lastInteractionTime = millis();
       displayReady();
     } else {
+      if (streamFromRam) {
+        Serial.println("BLE send failed, writing to file and queue...");
+        if (!writeRecordingToFile()) {
+          displayError("File Error");
+          delay(2000);
+          displayReady();
+          return;
+        }
+      }
       if (addToQueue()) {
         M5.Display.fillScreen(COLOR_BG_PRIMARY);
         drawTextSafe("SAVED", 10, 40, 4, COLOR_WHITE);
@@ -468,7 +489,8 @@ void sendQueue() {
     } else {
       failed++;
     }
-    delay(500);
+    // 3s gap so iPhone can finish assembly/upload before next START (avoids overlapping START)
+    delay(3000);
   }
 
   queueCount = failed;

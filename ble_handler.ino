@@ -164,7 +164,7 @@ bool streamViaBLE(const char* filepath) {
     pAudioChar->setValue(chunkBuf, 2 + n);
     pAudioChar->notify();
     chunkIndex++;
-    delay(10);  // 10ms between chunks so iOS doesn't drop notifications (~100 chunks/sec max)
+    delay(20);  // 20ms between chunks = 50/sec; 10ms was too fast, iOS dropped 60%+ on long streams
   }
 
   f.close();
@@ -179,6 +179,67 @@ bool streamViaBLE(const char* filepath) {
   sendControl(endMsg);
 
   Serial.printf("BLE streamed %s: %u chunks\n", filepath, (unsigned)chunkIndex);
+  return true;
+}
+
+bool streamViaBLEFromSamples(int16_t* samples, uint32_t sampleCount) {
+  if (!deviceConnected || !pAudioChar || !pControlChar) {
+    Serial.println("BLE not connected");
+    return false;
+  }
+  if (!samples || sampleCount == 0) {
+    sendControl("ERROR:no_data");
+    return false;
+  }
+
+  const uint32_t samplesPerChunk = BLE_AUDIO_PAYLOAD_SIZE / 2;  // 255
+  uint32_t totalChunks = (sampleCount + samplesPerChunk - 1) / samplesPerChunk;
+
+  uint32_t ts = millis();
+  char startMsg[80];
+  snprintf(startMsg, sizeof(startMsg), "START:%u:%u:1", (unsigned)ts, (unsigned)SAMPLE_RATE);
+  sendControl(startMsg);
+
+  uint8_t chunkBuf[BLE_AUDIO_CHUNK_SIZE];
+  uint32_t chunkIndex = 0;
+  uint32_t offset = 0;
+
+  while (chunkIndex < totalChunks && deviceConnected) {
+    memset(chunkBuf, 0, BLE_AUDIO_CHUNK_SIZE);
+    chunkBuf[0] = (uint8_t)(chunkIndex & 0xff);
+    chunkBuf[1] = (uint8_t)((chunkIndex >> 8) & 0xff);
+
+    uint32_t nSamples = samplesPerChunk;
+    if (offset + nSamples > sampleCount)
+      nSamples = sampleCount - offset;
+
+    for (uint32_t i = 0; i < nSamples; i++) {
+      int32_t s = (int32_t)samples[offset + i] * 10;
+      if (s > 32767) s = 32767;
+      if (s < -32768) s = -32768;
+      uint16_t u = (uint16_t)(int16_t)s;
+      chunkBuf[2 + i * 2] = (uint8_t)(u & 0xff);
+      chunkBuf[2 + i * 2 + 1] = (uint8_t)(u >> 8);
+    }
+
+    size_t payloadBytes = nSamples * 2;
+    pAudioChar->setValue(chunkBuf, 2 + payloadBytes);
+    pAudioChar->notify();
+    offset += nSamples;
+    chunkIndex++;
+    delay(20);  // 20ms between chunks = 50/sec; matches file path, reduces iOS drops
+  }
+
+  if (!deviceConnected) {
+    Serial.println("BLE disconnected during stream");
+    return false;
+  }
+
+  char endMsg[32];
+  snprintf(endMsg, sizeof(endMsg), "END:%u", (unsigned)chunkIndex);
+  sendControl(endMsg);
+
+  Serial.printf("BLE streamed from RAM: %u chunks (%u samples)\n", (unsigned)chunkIndex, (unsigned)sampleCount);
   return true;
 }
 
