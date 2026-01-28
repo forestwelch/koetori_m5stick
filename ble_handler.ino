@@ -164,7 +164,7 @@ bool streamViaBLE(const char* filepath) {
     pAudioChar->setValue(chunkBuf, 2 + n);
     pAudioChar->notify();
     chunkIndex++;
-    delay(2);  // Throttle slightly so iOS can keep up
+    delay(10);  // 10ms between chunks so iOS doesn't drop notifications (~100 chunks/sec max)
   }
 
   f.close();
